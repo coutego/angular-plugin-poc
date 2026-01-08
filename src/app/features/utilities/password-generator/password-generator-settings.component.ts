@@ -2,6 +2,11 @@ import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../core/settings.service';
+import { 
+  PasswordGeneratorSettings, 
+  PASSWORD_GENERATOR_SETTINGS_KEY,
+  PASSWORD_GENERATOR_DEFAULTS 
+} from './password-generator.plugin';
 
 @Component({
   selector: 'app-password-generator-settings',
@@ -101,11 +106,11 @@ import { SettingsService } from '../../../core/settings.service';
 export class PasswordGeneratorSettingsComponent {
   private readonly settingsService = inject(SettingsService);
 
-  protected readonly defaultLength = signal(16);
-  protected readonly includeUppercase = signal(true);
-  protected readonly includeLowercase = signal(true);
-  protected readonly includeNumbers = signal(true);
-  protected readonly includeSymbols = signal(true);
+  protected readonly defaultLength = signal(PASSWORD_GENERATOR_DEFAULTS.defaultLength);
+  protected readonly includeUppercase = signal(PASSWORD_GENERATOR_DEFAULTS.includeUppercase);
+  protected readonly includeLowercase = signal(PASSWORD_GENERATOR_DEFAULTS.includeLowercase);
+  protected readonly includeNumbers = signal(PASSWORD_GENERATOR_DEFAULTS.includeNumbers);
+  protected readonly includeSymbols = signal(PASSWORD_GENERATOR_DEFAULTS.includeSymbols);
 
   protected readonly estimatedEntropy = () => {
     let charsetSize = 0;
@@ -123,7 +128,7 @@ export class PasswordGeneratorSettingsComponent {
   constructor() {
     // Load initial settings
     effect(() => {
-      const settings = this.settingsService.passwordGeneratorSettings();
+      const settings = this.settingsService.get<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY);
       this.defaultLength.set(settings.defaultLength);
       this.includeUppercase.set(settings.includeUppercase);
       this.includeLowercase.set(settings.includeLowercase);
@@ -134,26 +139,26 @@ export class PasswordGeneratorSettingsComponent {
 
   protected updateDefaultLength(value: number): void {
     this.defaultLength.set(value);
-    this.settingsService.updatePasswordGeneratorSettings({ defaultLength: value });
+    this.settingsService.update<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY, { defaultLength: value });
   }
 
   protected updateIncludeUppercase(value: boolean): void {
     this.includeUppercase.set(value);
-    this.settingsService.updatePasswordGeneratorSettings({ includeUppercase: value });
+    this.settingsService.update<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY, { includeUppercase: value });
   }
 
   protected updateIncludeLowercase(value: boolean): void {
     this.includeLowercase.set(value);
-    this.settingsService.updatePasswordGeneratorSettings({ includeLowercase: value });
+    this.settingsService.update<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY, { includeLowercase: value });
   }
 
   protected updateIncludeNumbers(value: boolean): void {
     this.includeNumbers.set(value);
-    this.settingsService.updatePasswordGeneratorSettings({ includeNumbers: value });
+    this.settingsService.update<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY, { includeNumbers: value });
   }
 
   protected updateIncludeSymbols(value: boolean): void {
     this.includeSymbols.set(value);
-    this.settingsService.updatePasswordGeneratorSettings({ includeSymbols: value });
+    this.settingsService.update<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY, { includeSymbols: value });
   }
 }

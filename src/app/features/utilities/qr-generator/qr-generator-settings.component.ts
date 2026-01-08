@@ -2,6 +2,11 @@ import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../core/settings.service';
+import {
+  QrGeneratorSettings,
+  QR_GENERATOR_SETTINGS_KEY,
+  QR_GENERATOR_DEFAULTS,
+} from './qr-generator.plugin';
 
 @Component({
   selector: 'app-qr-generator-settings',
@@ -111,10 +116,10 @@ import { SettingsService } from '../../../core/settings.service';
 export class QrGeneratorSettingsComponent {
   private readonly settingsService = inject(SettingsService);
 
-  protected readonly defaultSize = signal('200');
-  protected readonly foregroundColor = signal('#000000');
-  protected readonly backgroundColor = signal('#ffffff');
-  protected readonly errorCorrectionLevel = signal<'L' | 'M' | 'Q' | 'H'>('M');
+  protected readonly defaultSize = signal(QR_GENERATOR_DEFAULTS.defaultSize);
+  protected readonly foregroundColor = signal(QR_GENERATOR_DEFAULTS.foregroundColor);
+  protected readonly backgroundColor = signal(QR_GENERATOR_DEFAULTS.backgroundColor);
+  protected readonly errorCorrectionLevel = signal<'L' | 'M' | 'Q' | 'H'>(QR_GENERATOR_DEFAULTS.errorCorrectionLevel);
 
   protected readonly previewUrl = () => {
     const size = this.defaultSize();
@@ -127,7 +132,7 @@ export class QrGeneratorSettingsComponent {
   constructor() {
     // Load initial settings
     effect(() => {
-      const settings = this.settingsService.qrGeneratorSettings();
+      const settings = this.settingsService.get<QrGeneratorSettings>(QR_GENERATOR_SETTINGS_KEY);
       this.defaultSize.set(settings.defaultSize);
       this.foregroundColor.set(settings.foregroundColor);
       this.backgroundColor.set(settings.backgroundColor);
@@ -137,21 +142,21 @@ export class QrGeneratorSettingsComponent {
 
   protected updateDefaultSize(value: string): void {
     this.defaultSize.set(value);
-    this.settingsService.updateQrGeneratorSettings({ defaultSize: value });
+    this.settingsService.update<QrGeneratorSettings>(QR_GENERATOR_SETTINGS_KEY, { defaultSize: value });
   }
 
   protected updateForegroundColor(value: string): void {
     this.foregroundColor.set(value);
-    this.settingsService.updateQrGeneratorSettings({ foregroundColor: value });
+    this.settingsService.update<QrGeneratorSettings>(QR_GENERATOR_SETTINGS_KEY, { foregroundColor: value });
   }
 
   protected updateBackgroundColor(value: string): void {
     this.backgroundColor.set(value);
-    this.settingsService.updateQrGeneratorSettings({ backgroundColor: value });
+    this.settingsService.update<QrGeneratorSettings>(QR_GENERATOR_SETTINGS_KEY, { backgroundColor: value });
   }
 
   protected updateErrorCorrection(value: 'L' | 'M' | 'Q' | 'H'): void {
     this.errorCorrectionLevel.set(value);
-    this.settingsService.updateQrGeneratorSettings({ errorCorrectionLevel: value });
+    this.settingsService.update<QrGeneratorSettings>(QR_GENERATOR_SETTINGS_KEY, { errorCorrectionLevel: value });
   }
 }

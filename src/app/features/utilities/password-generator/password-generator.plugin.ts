@@ -1,7 +1,26 @@
 import { definePlugin } from '../../../core/plugin.factory';
 import { NAV_ITEMS, SETTINGS_SECTIONS } from '../../../core/application.plugin';
+import { SETTINGS_SCHEMAS } from '../../../core/settings.service';
 import { PasswordGeneratorComponent } from './password-generator.component';
 import { PasswordGeneratorSettingsComponent } from './password-generator-settings.component';
+
+export interface PasswordGeneratorSettings {
+  defaultLength: number;
+  includeUppercase: boolean;
+  includeLowercase: boolean;
+  includeNumbers: boolean;
+  includeSymbols: boolean;
+}
+
+export const PASSWORD_GENERATOR_SETTINGS_KEY = 'password-generator';
+
+export const PASSWORD_GENERATOR_DEFAULTS: PasswordGeneratorSettings = {
+  defaultLength: 16,
+  includeUppercase: true,
+  includeLowercase: true,
+  includeNumbers: true,
+  includeSymbols: true,
+};
 
 export function providePasswordGeneratorPlugin() {
   return definePlugin({
@@ -38,6 +57,13 @@ export function providePasswordGeneratorPlugin() {
           iconColor: 'text-emerald-600 bg-emerald-50',
           component: PasswordGeneratorSettingsComponent,
           order: 20,
+        },
+      },
+      {
+        token: SETTINGS_SCHEMAS,
+        value: {
+          key: PASSWORD_GENERATOR_SETTINGS_KEY,
+          defaults: PASSWORD_GENERATOR_DEFAULTS,
         },
       },
     ],

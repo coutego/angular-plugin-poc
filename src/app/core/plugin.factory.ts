@@ -1,5 +1,6 @@
-import { makeEnvironmentProviders, EnvironmentProviders } from '@angular/core';
+import { makeEnvironmentProviders, EnvironmentProviders, inject, ENVIRONMENT_INITIALIZER } from '@angular/core';
 import { SimplePlugin, PLUGIN_CONTEXT } from './plugin.contract';
+import { PluginRegistryService, ContributionMetadata } from './plugin-registry.service';
 
 const registeredPlugins = new Set<string>();
 
@@ -18,12 +19,22 @@ export function definePlugin(plugin: SimplePlugin): EnvironmentProviders {
   console.log(`[PluginSystem] Registered plugin: ${plugin.id}`);
 
   const providers: any[] = [];
+  const contributions: ContributionMetadata[] = [];
 
   if (plugin.contributions) {
     plugin.contributions.forEach((contribution) => {
       const value = contribution.value;
-
       const namespacedValue = namespaceContribution(plugin.id, value);
+      
+      // Extract contribution metadata for introspection
+      const tokenName = extractTokenName(contribution.token.toString());
+      contributions.push({
+        type: tokenName,
+        id: (namespacedValue as any)?.id,
+        label: (namespacedValue as any)?.label,
+        details: sanitizeForIntrospection(namespacedValue),
+      });
+
       console.log(`[PluginSystem] Plugin ${plugin.id} contributing:`, namespacedValue);
 
       providers.push({
@@ -41,6 +52,23 @@ export function definePlugin(plugin: SimplePlugin): EnvironmentProviders {
   providers.push({
     provide: PLUGIN_CONTEXT,
     useValue: { pluginId: plugin.id },
+    multi: true,
+  });
+
+  // Register with plugin registry for introspection
+  providers.push({
+    provide: ENVIRONMENT_INITIALIZER,
+    useFactory: () => {
+      const registry = inject(PluginRegistryService);
+      return () => {
+        registry.register({
+          id: plugin.id,
+          description: plugin.description,
+          dependsOn: plugin.dependsOn || [],
+          contributions,
+        });
+      };
+    },
     multi: true,
   });
 
@@ -72,6 +100,43 @@ function namespaceContribution<T>(pluginId: string, value: T): T {
   }
 
   return value;
+}
+
+/**
+ * Extract a readable name from an InjectionToken string
+ */
+function extractTokenName(tokenString: string): string {
+  // InjectionToken toString() returns "InjectionToken EXT_nav-items" or similar
+  const match = tokenString.match(/InjectionToken\s+(.+)/);
+  if (match) {
+    return match[1].replace('EXT_', '');
+  }
+  return tokenString;
+}
+
+/**
+ * Sanitize a value for introspection (remove functions, circular refs, etc.)
+ */
+function sanitizeForIntrospection(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object') {
+    return { value };
+  }
+
+  const result: Record<string, unknown> = {};
+  
+  for (const [key, val] of Object.entries(value)) {
+    // Skip functions (like component references)
+    if (typeof val === 'function') {
+      result[key] = `[Function: ${val.name || 'anonymous'}]`;
+    } else if (val && typeof val === 'object') {
+      // Shallow copy for nested objects to avoid circular refs
+      result[key] = Array.isArray(val) ? `[Array(${val.length})]` : '[Object]';
+    } else {
+      result[key] = val;
+    }
+  }
+
+  return result;
 }
 
 export function resetPluginRegistry(): void {

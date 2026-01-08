@@ -2,6 +2,11 @@ import { Component, ChangeDetectionStrategy, signal, computed, OnDestroy, inject
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SettingsService } from '../../../../core/settings.service';
+import {
+  TetrisSettings,
+  TETRIS_SETTINGS_KEY,
+  TETRIS_DEFAULTS,
+} from './tetris.plugin';
 
 type Piece = {
   shape: number[][];
@@ -212,11 +217,12 @@ export class TetrisComponent implements OnDestroy {
   protected readonly hasStarted = signal(false);
 
   // Settings
-  protected readonly startingLevel = signal(1);
-  protected readonly showGhostPiece = signal(true);
-  protected readonly colorScheme = signal<'classic' | 'pastel' | 'neon' | 'monochrome'>('classic');
+  protected readonly startingLevel = signal(TETRIS_DEFAULTS.startingLevel);
+  protected readonly showGhostPiece = signal(TETRIS_DEFAULTS.showGhostPiece);
+  protected readonly colorScheme = signal<'classic' | 'pastel' | 'neon' | 'monochrome'>(TETRIS_DEFAULTS.colorScheme);
 
   private gameInterval: ReturnType<typeof setInterval> | null = null;
+  private settingsLoaded = false;
 
   protected readonly displayBoard = computed(() => {
     const boardCopy = this.board().map(row => [...row]);
@@ -262,10 +268,13 @@ export class TetrisComponent implements OnDestroy {
   constructor() {
     // Load settings
     effect(() => {
-      const settings = this.settingsService.tetrisSettings();
-      this.startingLevel.set(settings.startingLevel);
-      this.showGhostPiece.set(settings.showGhostPiece);
-      this.colorScheme.set(settings.colorScheme);
+      const settings = this.settingsService.get<TetrisSettings>(TETRIS_SETTINGS_KEY);
+      if (!this.settingsLoaded) {
+        this.startingLevel.set(settings.startingLevel);
+        this.showGhostPiece.set(settings.showGhostPiece);
+        this.colorScheme.set(settings.colorScheme);
+        this.settingsLoaded = true;
+      }
     }, { allowSignalWrites: true });
   }
 

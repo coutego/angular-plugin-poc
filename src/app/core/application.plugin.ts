@@ -2,6 +2,7 @@ import { makeEnvironmentProviders, inject, ENVIRONMENT_INITIALIZER, InjectionTok
 import { Router } from '@angular/router';
 import { definePlugin } from './plugin.factory';
 import { createExtensionPoint } from './plugin.contract';
+import { PluginRegistryService } from './plugin-registry.service';
 import { ChildrenNavigationComponent } from '../shared/children-navigation.component';
 
 export interface NavItem {
@@ -32,6 +33,16 @@ export interface SettingsSection {
   iconColor?: string;
   component: Type<unknown>;
   order?: number;
+  _pluginId?: string;
+}
+
+export interface SidebarFooterAction {
+  id: string;
+  label: string;
+  icon?: string;
+  route?: string;
+  order?: number;
+  _pluginId?: string;
 }
 
 // Raw nav items from plugins (before route processing)
@@ -39,6 +50,9 @@ export const NAV_ITEMS = createExtensionPoint<NavItem>('nav-items');
 
 // Settings sections contributed by plugins
 export const SETTINGS_SECTIONS = createExtensionPoint<SettingsSection>('settings-sections');
+
+// Sidebar footer actions contributed by plugins
+export const SIDEBAR_FOOTER_ACTIONS = createExtensionPoint<SidebarFooterAction>('sidebar-footer-actions');
 
 // Processed nav items with full routes - use this for navigation
 export const PROCESSED_NAV_ITEMS = new InjectionToken<NavItem[]>('PROCESSED_NAV_ITEMS', {
@@ -49,6 +63,7 @@ export const PROCESSED_NAV_ITEMS = new InjectionToken<NavItem[]>('PROCESSED_NAV_
 export const HEADER_COMPONENTS = createExtensionPoint<Type<unknown>>('header-components');
 export const OVERLAY_COMPONENTS = createExtensionPoint<Type<unknown>>('overlay-components');
 export const ROOT_COMPONENT = createExtensionPoint<Type<unknown>>('root-component');
+export const SHELL_COMPONENT = createExtensionPoint<Type<unknown>>('shell-component');
 
 // Mutable store for processed items
 let processedNavItemsStore: NavItem[] = [];
@@ -164,7 +179,15 @@ export const providePluginRoutes = () => {
       provide: PROCESSED_NAV_ITEMS,
       useFactory: () => {
         const rawNavItems = inject(NAV_ITEMS);
-        let processed = buildFullRoutes(rawNavItems);
+        const registry = inject(PluginRegistryService);
+        
+        // Filter out nav items from disabled plugins
+        const enabledNavItems = rawNavItems.filter(item => {
+          const pluginId = item._pluginId;
+          return !pluginId || registry.isEnabled(pluginId);
+        });
+        
+        let processed = buildFullRoutes(enabledNavItems);
         processed = assignDefaultComponents(processed);
         processedNavItemsStore = processed;
         return processed;
@@ -188,6 +211,7 @@ export const providePluginRoutes = () => {
               label: item.label,
               icon: item.icon,
               navItemId: item.id,
+              pluginId: item._pluginId,
             },
           }));
 
@@ -198,8 +222,12 @@ export const providePluginRoutes = () => {
           return bSegments - aSegments;
         });
 
-        // Find the first root-level route for default redirect
-        const defaultRoute = routes.find(r => !r.path.includes('/'))?.path || 'home';
+        // Find the first root-level route for default redirect (by order)
+        const rootItems = navItems
+          .filter(item => !item.parentId && item.route && item.component && !item.hidden)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        const defaultRoute = rootItems.length > 0 ? rootItems[0].route! : '';
 
         const newConfig = [
           ...routes,

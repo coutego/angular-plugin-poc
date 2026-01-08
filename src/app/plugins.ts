@@ -11,6 +11,8 @@ import { provideExtrasPlugin } from './features/extras/extras.plugin';
 import { provideGamesPlugin } from './features/extras/games/games.plugin';
 import { provideGame2048Plugin } from './features/extras/games/game-2048/game-2048.plugin';
 import { provideTetrisPlugin } from './features/extras/games/tetris/tetris.plugin';
+import { provideDevToolsPlugin } from './features/dev-tools/dev-tools.plugin';
+import { providePluginInspectorPlugin } from './features/dev-tools/plugin-inspector/plugin-inspector.plugin';
 
 export const plugins: EnvironmentProviders[] = [
   provideApplicationPlugin(),
@@ -25,4 +27,6 @@ export const plugins: EnvironmentProviders[] = [
   provideGamesPlugin(),
   provideGame2048Plugin(),
   provideTetrisPlugin(),
+  provideDevToolsPlugin(),
+  providePluginInspectorPlugin(),
 ];

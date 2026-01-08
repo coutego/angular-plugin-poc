@@ -2,6 +2,11 @@ import { Component, ChangeDetectionStrategy, signal, computed, inject, effect } 
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SettingsService } from '../../../../core/settings.service';
+import {
+  Game2048Settings,
+  GAME_2048_SETTINGS_KEY,
+  GAME_2048_DEFAULTS,
+} from './game-2048.plugin';
 
 type Grid = (number | null)[][];
 
@@ -116,18 +121,22 @@ export class Game2048Component {
   protected readonly bestScore = signal(this.loadBestScore());
   protected readonly gameOver = signal(false);
   protected readonly won = signal(false);
-  protected readonly colorScheme = signal<'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome'>('classic');
-  protected readonly showAnimations = signal(true);
+  protected readonly colorScheme = signal<'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome'>(GAME_2048_DEFAULTS.colorScheme);
+  protected readonly showAnimations = signal(GAME_2048_DEFAULTS.showAnimations);
 
   private touchStartX = 0;
   private touchStartY = 0;
+  private settingsLoaded = false;
 
   constructor() {
     // Load settings
     effect(() => {
-      const settings = this.settingsService.game2048Settings();
-      this.colorScheme.set(settings.colorScheme);
-      this.showAnimations.set(settings.showAnimations);
+      const settings = this.settingsService.get<Game2048Settings>(GAME_2048_SETTINGS_KEY);
+      if (!this.settingsLoaded) {
+        this.colorScheme.set(settings.colorScheme);
+        this.showAnimations.set(settings.showAnimations);
+        this.settingsLoaded = true;
+      }
     }, { allowSignalWrites: true });
 
     this.resetGame();

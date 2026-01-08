@@ -2,6 +2,11 @@ import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../../core/settings.service';
+import {
+  Game2048Settings,
+  GAME_2048_SETTINGS_KEY,
+  GAME_2048_DEFAULTS,
+} from './game-2048.plugin';
 
 @Component({
   selector: 'app-game-2048-settings',
@@ -64,14 +69,14 @@ import { SettingsService } from '../../../../core/settings.service';
 export class Game2048SettingsComponent {
   private readonly settingsService = inject(SettingsService);
 
-  protected readonly colorScheme = signal<'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome'>('classic');
-  protected readonly showAnimations = signal(true);
+  protected readonly colorScheme = signal<'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome'>(GAME_2048_DEFAULTS.colorScheme);
+  protected readonly showAnimations = signal(GAME_2048_DEFAULTS.showAnimations);
 
   protected readonly previewValues = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
 
   constructor() {
     effect(() => {
-      const settings = this.settingsService.game2048Settings();
+      const settings = this.settingsService.get<Game2048Settings>(GAME_2048_SETTINGS_KEY);
       this.colorScheme.set(settings.colorScheme);
       this.showAnimations.set(settings.showAnimations);
     }, { allowSignalWrites: true });
@@ -79,12 +84,12 @@ export class Game2048SettingsComponent {
 
   protected updateColorScheme(value: 'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome'): void {
     this.colorScheme.set(value);
-    this.settingsService.updateGame2048Settings({ colorScheme: value });
+    this.settingsService.update<Game2048Settings>(GAME_2048_SETTINGS_KEY, { colorScheme: value });
   }
 
   protected updateShowAnimations(value: boolean): void {
     this.showAnimations.set(value);
-    this.settingsService.updateGame2048Settings({ showAnimations: value });
+    this.settingsService.update<Game2048Settings>(GAME_2048_SETTINGS_KEY, { showAnimations: value });
   }
 
   protected getPreviewCellClass(value: number): string {

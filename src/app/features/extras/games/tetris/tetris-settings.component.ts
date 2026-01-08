@@ -2,6 +2,11 @@ import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../../core/settings.service';
+import {
+  TetrisSettings,
+  TETRIS_SETTINGS_KEY,
+  TETRIS_DEFAULTS,
+} from './tetris.plugin';
 
 @Component({
   selector: 'app-tetris-settings',
@@ -95,9 +100,9 @@ import { SettingsService } from '../../../../core/settings.service';
 export class TetrisSettingsComponent {
   private readonly settingsService = inject(SettingsService);
 
-  protected readonly startingLevel = signal(1);
-  protected readonly showGhostPiece = signal(true);
-  protected readonly colorScheme = signal<'classic' | 'pastel' | 'neon' | 'monochrome'>('classic');
+  protected readonly startingLevel = signal(TETRIS_DEFAULTS.startingLevel);
+  protected readonly showGhostPiece = signal(TETRIS_DEFAULTS.showGhostPiece);
+  protected readonly colorScheme = signal<'classic' | 'pastel' | 'neon' | 'monochrome'>(TETRIS_DEFAULTS.colorScheme);
 
   protected readonly previewPieces = [
     { name: 'I', shape: [[1, 1, 1, 1]] },
@@ -111,7 +116,7 @@ export class TetrisSettingsComponent {
 
   constructor() {
     effect(() => {
-      const settings = this.settingsService.tetrisSettings();
+      const settings = this.settingsService.get<TetrisSettings>(TETRIS_SETTINGS_KEY);
       this.startingLevel.set(settings.startingLevel);
       this.showGhostPiece.set(settings.showGhostPiece);
       this.colorScheme.set(settings.colorScheme);
@@ -120,17 +125,17 @@ export class TetrisSettingsComponent {
 
   protected updateStartingLevel(value: number): void {
     this.startingLevel.set(value);
-    this.settingsService.updateTetrisSettings({ startingLevel: value });
+    this.settingsService.update<TetrisSettings>(TETRIS_SETTINGS_KEY, { startingLevel: value });
   }
 
   protected updateShowGhostPiece(value: boolean): void {
     this.showGhostPiece.set(value);
-    this.settingsService.updateTetrisSettings({ showGhostPiece: value });
+    this.settingsService.update<TetrisSettings>(TETRIS_SETTINGS_KEY, { showGhostPiece: value });
   }
 
   protected updateColorScheme(value: 'classic' | 'pastel' | 'neon' | 'monochrome'): void {
     this.colorScheme.set(value);
-    this.settingsService.updateTetrisSettings({ colorScheme: value });
+    this.settingsService.update<TetrisSettings>(TETRIS_SETTINGS_KEY, { colorScheme: value });
   }
 
   protected getPieceColor(pieceName: string): string {

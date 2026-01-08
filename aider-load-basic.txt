@@ -1,0 +1,5 @@
+/read-only AGENTS.md
+/read-only src/app/core/plugin.contract.ts
+/read-only src/app/core/plugin.factory.ts
+/read-only src/app/core/application.plugin.ts
+/read-only src/app/core/settings.service.ts

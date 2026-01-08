@@ -62,6 +62,14 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 This application uses a plugin-based architecture. Follow these patterns when creating or modifying plugins.
 
+### Core Principles
+
+1. **Plugins Only**: Features are added by creating plugins and registering them in `src/app/plugins.ts`
+2. **No Cross-Plugin Imports**: Plugins must never import directly from other feature plugins
+3. **Extension Points**: All plugin communication happens through defined extension points
+4. **Dependency Declaration**: Plugins must declare their dependencies explicitly
+5. **Forward Dependencies Only**: A plugin can only depend on plugins listed before it in `plugins.ts`
+
 ### Plugin Structure
 
 Each plugin should be organized in its own directory under `src/app/features/` with the following structure:
@@ -170,6 +178,38 @@ Register settings panels:
 }
 ```
 
+#### SETTINGS_SCHEMAS
+Register settings with defaults (for use with SettingsService):
+
+```typescript
+{
+  token: SETTINGS_SCHEMAS,
+  value: {
+    key: 'my-feature',
+    defaults: {
+      option1: true,
+      option2: 'default-value',
+    },
+  },
+}
+```
+
+#### SIDEBAR_FOOTER_ACTIONS
+Add actions to the sidebar footer:
+
+```typescript
+{
+  token: SIDEBAR_FOOTER_ACTIONS,
+  value: {
+    id: 'my-action',
+    label: 'My Action',
+    icon: `<svg>...</svg>`,
+    route: '/my-route',
+    order: 10,
+  },
+}
+```
+
 #### HEADER_COMPONENTS
 Add components to the header:
 
@@ -187,6 +227,26 @@ Add global overlay components (modals, toasts, etc.):
 {
   token: OVERLAY_COMPONENTS,
   value: MyOverlayComponent,
+}
+```
+
+#### SHELL_COMPONENT
+Override the default application shell:
+
+```typescript
+{
+  token: SHELL_COMPONENT,
+  value: MyCustomShellComponent,
+}
+```
+
+#### ROOT_COMPONENT
+Override the root application component entirely:
+
+```typescript
+{
+  token: ROOT_COMPONENT,
+  value: MyCustomRootComponent,
 }
 ```
 
@@ -217,7 +277,23 @@ Create parent-child relationships using `parentId`:
 
 To add configurable settings to your plugin:
 
-1. Create a settings component:
+1. Define settings interface and defaults:
+
+```typescript
+export interface MyFeatureSettings {
+  option1: boolean;
+  option2: string;
+}
+
+export const MY_FEATURE_SETTINGS_KEY = 'my-feature';
+
+export const MY_FEATURE_DEFAULTS: MyFeatureSettings = {
+  option1: true,
+  option2: 'default',
+};
+```
+
+2. Create a settings component:
 
 ```typescript
 @Component({
@@ -226,31 +302,79 @@ To add configurable settings to your plugin:
 })
 export class MyFeatureSettingsComponent {
   private readonly settingsService = inject(SettingsService);
-  // Implement settings UI
+  
+  protected readonly option1 = signal(MY_FEATURE_DEFAULTS.option1);
+  
+  constructor() {
+    effect(() => {
+      const settings = this.settingsService.get<MyFeatureSettings>(MY_FEATURE_SETTINGS_KEY);
+      this.option1.set(settings.option1);
+    }, { allowSignalWrites: true });
+  }
+  
+  protected updateOption1(value: boolean): void {
+    this.option1.set(value);
+    this.settingsService.update<MyFeatureSettings>(MY_FEATURE_SETTINGS_KEY, { option1: value });
+  }
 }
 ```
 
-2. Register it as a settings section in your plugin:
+3. Register settings in your plugin:
 
 ```typescript
-{
-  token: SETTINGS_SECTIONS,
-  value: {
-    id: 'my-feature',
-    label: 'My Feature',
-    component: MyFeatureSettingsComponent,
-    order: 30,
+contributions: [
+  {
+    token: SETTINGS_SECTIONS,
+    value: {
+      id: 'my-feature',
+      label: 'My Feature',
+      component: MyFeatureSettingsComponent,
+      order: 30,
+    },
   },
-}
+  {
+    token: SETTINGS_SCHEMAS,
+    value: {
+      key: MY_FEATURE_SETTINGS_KEY,
+      defaults: MY_FEATURE_DEFAULTS,
+    },
+  },
+]
 ```
 
-3. Link to settings from your feature:
+4. Link to settings from your feature:
 
 ```typescript
 protected goToSettings(): void {
   this.router.navigate(['/settings'], { fragment: 'my-feature' });
 }
 ```
+
+### Plugin Registry and Introspection
+
+The `PluginRegistryService` provides runtime introspection of registered plugins:
+
+```typescript
+const registry = inject(PluginRegistryService);
+
+// Check if a plugin is enabled
+registry.isEnabled('my-plugin');
+
+// Get plugin metadata
+registry.getPlugin('my-plugin');
+
+// Get all plugins
+registry.plugins();
+
+// Get plugins that depend on a specific plugin
+registry.getDependents('my-plugin');
+
+// Enable/disable plugins (requires page reload)
+registry.disable('my-plugin');
+registry.enable('my-plugin');
+```
+
+The Dev Tools plugin provides a visual Plugin Inspector for viewing and managing plugins at runtime.
 
 ### Plugin Dependencies
 
@@ -283,3 +407,4 @@ Plugin IDs are automatically namespaced:
 6. **Consistent Icons**: Use Heroicons (outline style) for consistency
 7. **Order Values**: Use increments of 10 for `order` to allow insertion
 8. **Settings**: Provide configurable defaults through the settings system
+9. **Graceful Degradation**: Check if dependent features exist before using them

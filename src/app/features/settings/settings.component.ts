@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SETTINGS_SECTIONS, SettingsSection } from '../../core/application.plugin';
+import { PluginRegistryService } from '../../core/plugin-registry.service';
 
 @Component({
   selector: 'app-settings',
@@ -89,18 +90,25 @@ export class SettingsComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly route = inject(ActivatedRoute);
   private readonly sections = inject(SETTINGS_SECTIONS);
+  private readonly registry = inject(PluginRegistryService);
 
   protected readonly selectedSection = signal<SettingsSection | null>(null);
 
   protected readonly sortedSections = () => {
-    return [...this.sections].sort((a, b) => (a.order || 0) - (b.order || 0));
+    // Filter out sections from disabled plugins
+    const enabledSections = this.sections.filter(section => {
+      const pluginId = (section as any)._pluginId;
+      return !pluginId || this.registry.isEnabled(pluginId);
+    });
+    
+    return [...enabledSections].sort((a, b) => (a.order || 0) - (b.order || 0));
   };
 
   ngOnInit(): void {
     // Check for fragment in URL to auto-select section
     this.route.fragment.subscribe((fragment) => {
       if (fragment) {
-        const section = this.sections.find((s) => s.id === fragment);
+        const section = this.sortedSections().find((s) => s.id === fragment);
         if (section) {
           this.selectedSection.set(section);
           return;

@@ -3,6 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SettingsService } from '../../../core/settings.service';
+import { 
+  PasswordGeneratorSettings, 
+  PASSWORD_GENERATOR_SETTINGS_KEY,
+  PASSWORD_GENERATOR_DEFAULTS 
+} from './password-generator.plugin';
 
 @Component({
   selector: 'app-password-generator',
@@ -189,11 +194,11 @@ export class PasswordGeneratorComponent {
   protected readonly showPassword = signal(true);
   protected readonly copied = signal(false);
 
-  protected readonly length = signal(16);
-  protected readonly includeUppercase = signal(true);
-  protected readonly includeLowercase = signal(true);
-  protected readonly includeNumbers = signal(true);
-  protected readonly includeSymbols = signal(true);
+  protected readonly length = signal(PASSWORD_GENERATOR_DEFAULTS.defaultLength);
+  protected readonly includeUppercase = signal(PASSWORD_GENERATOR_DEFAULTS.includeUppercase);
+  protected readonly includeLowercase = signal(PASSWORD_GENERATOR_DEFAULTS.includeLowercase);
+  protected readonly includeNumbers = signal(PASSWORD_GENERATOR_DEFAULTS.includeNumbers);
+  protected readonly includeSymbols = signal(PASSWORD_GENERATOR_DEFAULTS.includeSymbols);
 
   private settingsLoaded = false;
 
@@ -247,7 +252,7 @@ export class PasswordGeneratorComponent {
   constructor() {
     // Load settings from service
     effect(() => {
-      const settings = this.settingsService.passwordGeneratorSettings();
+      const settings = this.settingsService.get<PasswordGeneratorSettings>(PASSWORD_GENERATOR_SETTINGS_KEY);
       if (!this.settingsLoaded) {
         this.length.set(settings.defaultLength);
         this.includeUppercase.set(settings.includeUppercase);

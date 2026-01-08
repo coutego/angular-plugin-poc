@@ -1,7 +1,24 @@
 import { definePlugin } from '../../../core/plugin.factory';
 import { NAV_ITEMS, SETTINGS_SECTIONS } from '../../../core/application.plugin';
+import { SETTINGS_SCHEMAS } from '../../../core/settings.service';
 import { QrGeneratorComponent } from './qr-generator.component';
 import { QrGeneratorSettingsComponent } from './qr-generator-settings.component';
+
+export interface QrGeneratorSettings {
+  defaultSize: string;
+  foregroundColor: string;
+  backgroundColor: string;
+  errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H';
+}
+
+export const QR_GENERATOR_SETTINGS_KEY = 'qr-generator';
+
+export const QR_GENERATOR_DEFAULTS: QrGeneratorSettings = {
+  defaultSize: '200',
+  foregroundColor: '#000000',
+  backgroundColor: '#ffffff',
+  errorCorrectionLevel: 'M',
+};
 
 export function provideQrGeneratorPlugin() {
   return definePlugin({
@@ -38,6 +55,13 @@ export function provideQrGeneratorPlugin() {
           iconColor: 'text-indigo-600 bg-indigo-50',
           component: QrGeneratorSettingsComponent,
           order: 10,
+        },
+      },
+      {
+        token: SETTINGS_SCHEMAS,
+        value: {
+          key: QR_GENERATOR_SETTINGS_KEY,
+          defaults: QR_GENERATOR_DEFAULTS,
         },
       },
     ],

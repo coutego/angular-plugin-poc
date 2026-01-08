@@ -1,7 +1,20 @@
 import { definePlugin } from '../../../../core/plugin.factory';
 import { NAV_ITEMS, SETTINGS_SECTIONS } from '../../../../core/application.plugin';
+import { SETTINGS_SCHEMAS } from '../../../../core/settings.service';
 import { Game2048Component } from './game-2048.component';
 import { Game2048SettingsComponent } from './game-2048-settings.component';
+
+export interface Game2048Settings {
+  colorScheme: 'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome';
+  showAnimations: boolean;
+}
+
+export const GAME_2048_SETTINGS_KEY = 'game-2048';
+
+export const GAME_2048_DEFAULTS: Game2048Settings = {
+  colorScheme: 'classic',
+  showAnimations: true,
+};
 
 export function provideGame2048Plugin() {
   return definePlugin({
@@ -37,6 +50,13 @@ export function provideGame2048Plugin() {
           </svg>`,
           component: Game2048SettingsComponent,
           order: 40,
+        },
+      },
+      {
+        token: SETTINGS_SCHEMAS,
+        value: {
+          key: GAME_2048_SETTINGS_KEY,
+          defaults: GAME_2048_DEFAULTS,
         },
       },
     ],

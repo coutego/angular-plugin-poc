@@ -2,7 +2,8 @@ import { Component, ChangeDetectionStrategy, input, computed, signal, inject, ef
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { NavItem } from '../core/application.plugin';
+import { NavItem, SIDEBAR_FOOTER_ACTIONS, SidebarFooterAction } from '../core/application.plugin';
+import { PluginRegistryService } from '../core/plugin-registry.service';
 
 interface NavItemWithChildren extends NavItem {
   children?: NavItemWithChildren[];
@@ -75,26 +76,31 @@ interface NavItemWithChildren extends NavItem {
         }
       </nav>
 
-      <!-- Footer - Settings Button -->
-      <div class="px-3 border-t border-slate-100 pt-3 pb-3 bg-white flex-shrink-0">
-        <a 
-          href="#/settings"
-          (click)="navigateToSettings($event)"
-          class="flex items-center gap-3 px-3 py-3 w-full rounded-xl text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-all"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span class="text-xs font-semibold">Settings</span>
-        </a>
-      </div>
+      <!-- Footer Actions (contributed by plugins) -->
+      @if (enabledFooterActions().length > 0) {
+        <div class="px-3 border-t border-slate-100 pt-3 pb-3 bg-white flex-shrink-0">
+          @for (action of enabledFooterActions(); track action.id) {
+            <a 
+              [href]="'#' + (action.route || '')"
+              (click)="navigateToAction(action, $event)"
+              class="flex items-center gap-3 px-3 py-3 w-full rounded-xl text-slate-500 hover:bg-slate-50 hover:text-blue-600 transition-all"
+            >
+              @if (action.icon) {
+                <span [innerHTML]="sanitizeIcon(action.icon)"></span>
+              }
+              <span class="text-xs font-semibold">{{ action.label }}</span>
+            </a>
+          }
+        </div>
+      }
     </aside>
   `,
 })
 export class SidebarComponent {
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly registry = inject(PluginRegistryService);
+  private readonly footerActions = inject(SIDEBAR_FOOTER_ACTIONS);
 
   readonly navItems = input<NavItemWithChildren[]>([]);
   readonly collapsed = input<boolean>(false);
@@ -109,6 +115,15 @@ export class SidebarComponent {
     }`;
   });
 
+  readonly enabledFooterActions = computed(() => {
+    return this.footerActions
+      .filter(action => {
+        const pluginId = (action as any)._pluginId;
+        return !pluginId || this.registry.isEnabled(pluginId);
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  });
+
   readonly currentNode = computed(() => {
     const stack = this.navigationStack();
     const virtualRoot = this.virtualRoot();
@@ -120,9 +135,15 @@ export class SidebarComponent {
     const node = this.currentNode();
     const items = node?.children || [];
     
+    // Filter out items from disabled plugins
+    const enabledItems = items.filter(item => {
+      const pluginId = item._pluginId;
+      return !pluginId || this.registry.isEnabled(pluginId);
+    });
+    
     // Group items by section
     const grouped = new Map<string | undefined, NavItemWithChildren[]>();
-    items.forEach(item => {
+    enabledItems.forEach(item => {
       const section = item.section;
       if (!grouped.has(section)) {
         grouped.set(section, []);
@@ -178,9 +199,15 @@ export class SidebarComponent {
   navigateToItem(item: NavItemWithChildren, event: Event): void {
     event.preventDefault();
     
-    if (item.children && item.children.length > 0) {
-      // Navigate into submenu
-      this.navigationStack.update(stack => [...stack, item]);
+    // Filter children to only include enabled plugins
+    const enabledChildren = item.children?.filter(child => {
+      const pluginId = child._pluginId;
+      return !pluginId || this.registry.isEnabled(pluginId);
+    });
+    
+    if (enabledChildren && enabledChildren.length > 0) {
+      // Navigate into submenu with filtered children
+      this.navigationStack.update(stack => [...stack, { ...item, children: enabledChildren }]);
     }
     
     // Always navigate to route if available
@@ -189,9 +216,11 @@ export class SidebarComponent {
     }
   }
 
-  navigateToSettings(event: Event): void {
+  navigateToAction(action: SidebarFooterAction, event: Event): void {
     event.preventDefault();
-    this.router.navigate(['/settings']);
+    if (action.route) {
+      this.router.navigate([action.route]);
+    }
   }
 
   navigateBack(): void {

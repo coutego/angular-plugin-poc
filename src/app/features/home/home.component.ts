@@ -1,13 +1,14 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { PluginRegistryService } from '../../core/plugin-registry.service';
 
 @Component({
   selector: 'app-home',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule],
   template: `
-    <div class="max-w-3xl">
+    <div class="max-w-4xl">
       <!-- Hero Section -->
       <div class="flex items-center gap-5 mb-6">
         <div class="flex-shrink-0">
@@ -29,13 +30,35 @@ import { Router } from '@angular/router';
       <!-- Description -->
       <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-5 mb-6 border border-slate-200">
         <p class="text-slate-700 text-sm leading-relaxed">
-          Each feature in this app is a <strong>self-contained plugin</strong> that registers its own routes, 
-          navigation items, and settings through extension points — no changes to core code required.
+          This application demonstrates a <strong>plugin-based architecture</strong> where features are self-contained modules 
+          that register their own routes, navigation items, and settings through <strong>extension points</strong>. 
+          New features can be added by creating a plugin and registering it in <code class="px-1.5 py-0.5 bg-slate-200 rounded text-xs">plugins.ts</code> — no changes to core code required.
         </p>
       </div>
 
+      <!-- Stats Bar -->
+      <div class="grid grid-cols-4 gap-3 mb-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <p class="text-2xl font-bold text-slate-900">{{ pluginStats().total }}</p>
+          <p class="text-xs text-slate-500">Plugins</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <p class="text-2xl font-bold text-green-600">{{ pluginStats().enabled }}</p>
+          <p class="text-xs text-slate-500">Enabled</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <p class="text-2xl font-bold text-blue-600">{{ pluginStats().totalContributions }}</p>
+          <p class="text-xs text-slate-500">Contributions</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <p class="text-2xl font-bold text-purple-600">8</p>
+          <p class="text-xs text-slate-500">Extension Points</p>
+        </div>
+      </div>
+
       <!-- Quick Links -->
-      <div class="grid grid-cols-3 gap-3 mb-6">
+      <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Explore Features</h2>
+      <div class="grid grid-cols-4 gap-3 mb-6">
         <button
           (click)="navigateTo('/utilities')"
           class="group p-4 bg-white rounded-xl border border-slate-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
@@ -64,6 +87,19 @@ import { Router } from '@angular/router';
         </button>
 
         <button
+          (click)="navigateTo('/dev-tools')"
+          class="group p-4 bg-white rounded-xl border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all text-left"
+        >
+          <div class="p-2 rounded-lg text-orange-600 bg-orange-50 w-fit mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+          </div>
+          <h3 class="font-semibold text-slate-900 text-sm">Dev Tools</h3>
+          <p class="text-xs text-slate-500">Plugin inspector</p>
+        </button>
+
+        <button
           (click)="navigateTo('/settings')"
           class="group p-4 bg-white rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all text-left"
         >
@@ -78,7 +114,75 @@ import { Router } from '@angular/router';
         </button>
       </div>
 
-      <!-- Documentation -->
+      <!-- Architecture Overview -->
+      <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">How It Works</h2>
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <!-- Extension Points -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 class="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Extension Points
+          </h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded">
+              <code class="text-slate-700">NAV_ITEMS</code>
+              <span class="text-slate-500">Sidebar navigation</span>
+            </div>
+            <div class="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded">
+              <code class="text-slate-700">SETTINGS_SECTIONS</code>
+              <span class="text-slate-500">Settings panels</span>
+            </div>
+            <div class="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded">
+              <code class="text-slate-700">SIDEBAR_FOOTER_ACTIONS</code>
+              <span class="text-slate-500">Footer buttons</span>
+            </div>
+            <div class="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded">
+              <code class="text-slate-700">HEADER_COMPONENTS</code>
+              <span class="text-slate-500">Header widgets</span>
+            </div>
+            <div class="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded">
+              <code class="text-slate-700">SHELL_COMPONENT</code>
+              <span class="text-slate-500">Override shell</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Core Principles -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4">
+          <h3 class="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Core Principles
+          </h3>
+          <ul class="space-y-2 text-xs text-slate-600">
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span><strong class="text-slate-700">Plugins Only</strong> — Features added via plugins.ts</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span><strong class="text-slate-700">No Cross-Imports</strong> — Plugins never import each other</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span><strong class="text-slate-700">Extension Points</strong> — All communication via tokens</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span><strong class="text-slate-700">Explicit Dependencies</strong> — Declared in dependsOn</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span><strong class="text-slate-700">Forward Only</strong> — Depend on earlier plugins only</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Documentation Links -->
       <div class="flex items-center gap-6 text-sm text-slate-500 bg-white rounded-xl border border-slate-200 p-4">
         <div class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -93,12 +197,27 @@ import { Router } from '@angular/router';
           </svg>
           <span><strong class="text-slate-700">AGENTS.md</strong> — Plugin guidelines</span>
         </div>
+        <div class="h-4 w-px bg-slate-200"></div>
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+          <button 
+            (click)="navigateTo('/dev-tools/plugins')"
+            class="text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Plugin Inspector →
+          </button>
+        </div>
       </div>
     </div>
   `,
 })
 export class HomeComponent {
   private readonly router = inject(Router);
+  private readonly registry = inject(PluginRegistryService);
+
+  protected readonly pluginStats = () => this.registry.getStats();
 
   protected navigateTo(path: string): void {
     this.router.navigate([path]);

@@ -1,7 +1,22 @@
 import { definePlugin } from '../../../../core/plugin.factory';
 import { NAV_ITEMS, SETTINGS_SECTIONS } from '../../../../core/application.plugin';
+import { SETTINGS_SCHEMAS } from '../../../../core/settings.service';
 import { TetrisComponent } from './tetris.component';
 import { TetrisSettingsComponent } from './tetris-settings.component';
+
+export interface TetrisSettings {
+  startingLevel: number;
+  showGhostPiece: boolean;
+  colorScheme: 'classic' | 'pastel' | 'neon' | 'monochrome';
+}
+
+export const TETRIS_SETTINGS_KEY = 'tetris';
+
+export const TETRIS_DEFAULTS: TetrisSettings = {
+  startingLevel: 1,
+  showGhostPiece: true,
+  colorScheme: 'classic',
+};
 
 export function provideTetrisPlugin() {
   return definePlugin({
@@ -37,6 +52,13 @@ export function provideTetrisPlugin() {
           </svg>`,
           component: TetrisSettingsComponent,
           order: 50,
+        },
+      },
+      {
+        token: SETTINGS_SCHEMAS,
+        value: {
+          key: TETRIS_SETTINGS_KEY,
+          defaults: TETRIS_DEFAULTS,
         },
       },
     ],

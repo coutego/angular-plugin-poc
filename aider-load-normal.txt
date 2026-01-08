@@ -1,0 +1,5 @@
+/read-only src/app/features/utilities/utilities.plugin.ts
+/read-only src/app/features/extras/extras.plugin.ts
+/read-only src/app/features/extras/games/games.plugin.ts
+/read-only src/app/features/dev-tools/dev-tools.plugin.ts
+/read-only src/app/core/plugin-registry.service.ts

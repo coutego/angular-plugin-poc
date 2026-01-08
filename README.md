@@ -11,6 +11,7 @@ This application implements a plugin-based architecture that allows:
 - **Extension Points**: Core application exposes hooks for plugins to extend functionality
 - **Dependency Management**: Plugins can declare dependencies on other plugins
 - **Settings System**: Plugins can contribute configuration panels to a central settings page
+- **Runtime Introspection**: View and manage plugins through the Plugin Inspector
 
 ## 🏗️ Architecture
 
@@ -23,6 +24,7 @@ This application implements a plugin-based architecture that allows:
 │  │   Header    │  │   Sidebar   │  │    Main Content     │  │
 │  │             │  │             │  │                     │  │
 │  │ [Extension] │  │ [Nav Items] │  │  [Router Outlet]    │  │
+│  │             │  │ [Footer]    │  │                     │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               ▲
@@ -50,8 +52,11 @@ The application defines several extension points that plugins can contribute to:
 |----------------|---------|
 | `NAV_ITEMS` | Navigation items for the sidebar |
 | `SETTINGS_SECTIONS` | Configuration panels in settings |
+| `SETTINGS_SCHEMAS` | Settings defaults for SettingsService |
+| `SIDEBAR_FOOTER_ACTIONS` | Actions in the sidebar footer |
 | `HEADER_COMPONENTS` | Components rendered in the header |
 | `OVERLAY_COMPONENTS` | Global overlay components (modals, toasts) |
+| `SHELL_COMPONENT` | Override the application shell |
 | `ROOT_COMPONENT` | Override the root application component |
 
 ## 📁 Project Structure
@@ -61,7 +66,8 @@ src/app/
 ├── core/                          # Core plugin infrastructure
 │   ├── plugin.contract.ts         # Plugin interfaces and types
 │   ├── plugin.factory.ts          # Plugin creation utilities
-│   ├── application.plugin.ts      # Core application plugin
+│   ├── plugin-registry.service.ts # Runtime plugin management
+│   ├── application.plugin.ts      # Core application plugin & extension points
 │   └── settings.service.ts        # Global settings management
 │
 ├── shell/                         # Application shell components
@@ -77,9 +83,16 @@ src/app/
 ├── features/                      # Feature plugins
 │   ├── home/                      # Home plugin
 │   ├── settings/                  # Settings plugin
-│   └── utilities/                 # Utilities plugin group
-│       ├── qr-generator/          # QR Generator plugin
-│       └── password-generator/    # Password Generator plugin
+│   ├── utilities/                 # Utilities plugin group
+│   │   ├── qr-generator/          # QR Generator plugin
+│   │   ├── password-generator/    # Password Generator plugin
+│   │   └── kanban-board/          # Kanban Board plugin
+│   ├── extras/                    # Extras plugin group
+│   │   └── games/                 # Games plugin group
+│   │       ├── game-2048/         # 2048 game plugin
+│   │       └── tetris/            # Tetris game plugin
+│   └── dev-tools/                 # Developer tools
+│       └── plugin-inspector/      # Plugin Inspector plugin
 │
 ├── plugins.ts                     # Plugin registration
 └── app.component.ts               # Root component
@@ -172,6 +185,20 @@ export function provideJsonFormatterPlugin() {
 ### Plugin with Settings
 
 ```typescript
+import { SETTINGS_SCHEMAS } from '../../core/settings.service';
+
+export interface MyFeatureSettings {
+  enabled: boolean;
+  theme: 'light' | 'dark';
+}
+
+export const MY_FEATURE_SETTINGS_KEY = 'my-feature';
+
+export const MY_FEATURE_DEFAULTS: MyFeatureSettings = {
+  enabled: true,
+  theme: 'light',
+};
+
 export function provideMyFeaturePlugin() {
   return definePlugin({
     id: 'my-feature',
@@ -187,7 +214,7 @@ export function provideMyFeaturePlugin() {
           component: MyFeatureComponent,
         },
       },
-      // Settings section
+      // Settings section (UI)
       {
         token: SETTINGS_SECTIONS,
         value: {
@@ -196,6 +223,39 @@ export function provideMyFeaturePlugin() {
           description: 'Configure my feature behavior',
           icon: `<svg>...</svg>`,
           component: MyFeatureSettingsComponent,
+          order: 50,
+        },
+      },
+      // Settings schema (defaults)
+      {
+        token: SETTINGS_SCHEMAS,
+        value: {
+          key: MY_FEATURE_SETTINGS_KEY,
+          defaults: MY_FEATURE_DEFAULTS,
+        },
+      },
+    ],
+  });
+}
+```
+
+### Plugin with Sidebar Footer Action
+
+```typescript
+import { SIDEBAR_FOOTER_ACTIONS } from '../../core/application.plugin';
+
+export function provideMyFeaturePlugin() {
+  return definePlugin({
+    id: 'my-feature',
+    dependsOn: ['application'],
+    contributions: [
+      {
+        token: SIDEBAR_FOOTER_ACTIONS,
+        value: {
+          id: 'quick-action',
+          label: 'Quick Action',
+          icon: `<svg>...</svg>`,
+          route: '/my-feature/quick',
           order: 50,
         },
       },
@@ -264,10 +324,9 @@ export function definePlugin(plugin: SimplePlugin): EnvironmentProviders {
 Extension points are created using Angular's dependency injection:
 
 ```typescript
-export const NAV_ITEMS = new InjectionToken<NavItem[]>('NAV_ITEMS', {
-  providedIn: 'root',
-  factory: () => [],
-});
+export const NAV_ITEMS = createExtensionPoint<NavItem>('nav-items');
+
+// Creates an InjectionToken with multi: true behavior
 ```
 
 Plugins contribute to extension points using `multi: true` providers, which collects all contributions into an array.
@@ -305,6 +364,29 @@ function assignDefaultComponents(navItems: NavItem[]): NavItem[] {
 }
 ```
 
+### 5. Plugin Registry
+
+The `PluginRegistryService` tracks all registered plugins and provides:
+
+- Runtime introspection of plugin metadata
+- Enable/disable functionality (persisted to localStorage)
+- Dependency graph analysis
+- Contribution tracking
+
+## 🛠️ Dev Tools
+
+### Plugin Inspector
+
+The Plugin Inspector (available under Dev Tools) provides:
+
+- Overview of all registered plugins
+- Enable/disable plugins at runtime
+- View plugin dependencies and dependents
+- Inspect contributions made by each plugin
+- Dependency graph visualization
+
+Access it at `/dev-tools/plugins` or through the sidebar navigation.
+
 ## 🎨 UI Components
 
 ### Navigation Structure
@@ -314,6 +396,7 @@ The sidebar supports:
 - **Nested navigation**: Drill-down into sub-menus
 - **Sections**: Group items under headers
 - **Active state**: Highlights current route
+- **Footer actions**: Plugin-contributed footer items
 
 ### Settings Page
 
@@ -347,6 +430,9 @@ ng serve
 
 # Build for production
 ng build
+
+# Build single HTML file
+npm run build:single
 ```
 
 ### Creating a New Plugin
@@ -362,9 +448,28 @@ ng build
 |------|---------|
 | `core/plugin.contract.ts` | TypeScript interfaces for plugins |
 | `core/plugin.factory.ts` | `definePlugin()` function |
+| `core/plugin-registry.service.ts` | Runtime plugin management |
 | `core/application.plugin.ts` | Extension points and route generation |
+| `core/settings.service.ts` | Settings management with schema support |
 | `plugins.ts` | Plugin registration |
 | `shell/app-shell.component.ts` | Main application layout |
+
+## 🎮 Included Plugins
+
+| Plugin | Description |
+|--------|-------------|
+| `home` | Landing page with quick links |
+| `settings` | Central settings management |
+| `utilities` | Parent for utility plugins |
+| `qr-generator` | QR code generation |
+| `password-generator` | Secure password generation |
+| `kanban-board` | Task management board |
+| `extras` | Parent for extra features |
+| `games` | Parent for game plugins |
+| `game-2048` | 2048 puzzle game |
+| `tetris` | Classic Tetris game |
+| `dev-tools` | Parent for developer tools |
+| `plugin-inspector` | Plugin introspection UI |
 
 ## 🤝 Contributing
 

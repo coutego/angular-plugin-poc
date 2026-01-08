@@ -1,62 +1,18 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { createExtensionPoint } from './plugin.contract';
 
-export interface QrGeneratorSettings {
-  defaultSize: string;
-  foregroundColor: string;
-  backgroundColor: string;
-  errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H';
+/**
+ * Settings schema contributed by plugins
+ */
+export interface SettingsSchema<T = unknown> {
+  key: string;
+  defaults: T;
 }
 
-export interface PasswordGeneratorSettings {
-  defaultLength: number;
-  includeUppercase: boolean;
-  includeLowercase: boolean;
-  includeNumbers: boolean;
-  includeSymbols: boolean;
-}
-
-export interface Game2048Settings {
-  colorScheme: 'classic' | 'ocean' | 'forest' | 'sunset' | 'monochrome';
-  showAnimations: boolean;
-}
-
-export interface TetrisSettings {
-  startingLevel: number;
-  showGhostPiece: boolean;
-  colorScheme: 'classic' | 'pastel' | 'neon' | 'monochrome';
-}
-
-export interface AppSettings {
-  qrGenerator: QrGeneratorSettings;
-  passwordGenerator: PasswordGeneratorSettings;
-  game2048: Game2048Settings;
-  tetris: TetrisSettings;
-}
-
-const DEFAULT_SETTINGS: AppSettings = {
-  qrGenerator: {
-    defaultSize: '200',
-    foregroundColor: '#000000',
-    backgroundColor: '#ffffff',
-    errorCorrectionLevel: 'M',
-  },
-  passwordGenerator: {
-    defaultLength: 16,
-    includeUppercase: true,
-    includeLowercase: true,
-    includeNumbers: true,
-    includeSymbols: true,
-  },
-  game2048: {
-    colorScheme: 'classic',
-    showAnimations: true,
-  },
-  tetris: {
-    startingLevel: 1,
-    showGhostPiece: true,
-    colorScheme: 'classic',
-  },
-};
+/**
+ * Extension point for plugins to register their settings schemas
+ */
+export const SETTINGS_SCHEMAS = createExtensionPoint<SettingsSchema>('settings-schemas');
 
 const STORAGE_KEY = 'app-settings';
 
@@ -64,33 +20,40 @@ const STORAGE_KEY = 'app-settings';
   providedIn: 'root',
 })
 export class SettingsService {
-  private readonly settingsSignal = signal<AppSettings>(this.loadSettings());
+  private readonly schemas = inject(SETTINGS_SCHEMAS);
+  
+  private readonly settingsSignal = signal<Record<string, unknown>>(this.loadSettings());
 
   readonly settings = this.settingsSignal.asReadonly();
 
-  readonly qrGeneratorSettings = computed(() => this.settingsSignal().qrGenerator);
-  readonly passwordGeneratorSettings = computed(() => this.settingsSignal().passwordGenerator);
-  readonly game2048Settings = computed(() => this.settingsSignal().game2048);
-  readonly tetrisSettings = computed(() => this.settingsSignal().tetris);
+  private loadSettings(): Record<string, unknown> {
+    // Build defaults from all registered schemas
+    const defaults: Record<string, unknown> = {};
+    this.schemas.forEach(schema => {
+      defaults[schema.key] = schema.defaults;
+    });
 
-  private loadSettings(): AppSettings {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        return {
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          qrGenerator: { ...DEFAULT_SETTINGS.qrGenerator, ...parsed.qrGenerator },
-          passwordGenerator: { ...DEFAULT_SETTINGS.passwordGenerator, ...parsed.passwordGenerator },
-          game2048: { ...DEFAULT_SETTINGS.game2048, ...parsed.game2048 },
-          tetris: { ...DEFAULT_SETTINGS.tetris, ...parsed.tetris },
-        };
+        // Merge stored values with defaults (defaults provide missing keys)
+        const merged: Record<string, unknown> = { ...defaults };
+        for (const key of Object.keys(parsed)) {
+          if (defaults[key] !== undefined) {
+            // Deep merge for objects
+            merged[key] = { ...(defaults[key] as object), ...(parsed[key] as object) };
+          } else {
+            // Keep stored value even if no schema (backward compat)
+            merged[key] = parsed[key];
+          }
+        }
+        return merged;
       }
     } catch (e) {
       console.error('Failed to load settings:', e);
     }
-    return DEFAULT_SETTINGS;
+    return defaults;
   }
 
   private saveSettings(): void {
@@ -101,40 +64,70 @@ export class SettingsService {
     }
   }
 
-  updateQrGeneratorSettings(settings: Partial<QrGeneratorSettings>): void {
+  /**
+   * Get settings for a specific plugin by key
+   */
+  get<T>(key: string): T {
+    const current = this.settingsSignal();
+    if (current[key] !== undefined) {
+      return current[key] as T;
+    }
+    
+    // Find defaults from schema
+    const schema = this.schemas.find(s => s.key === key);
+    return (schema?.defaults ?? {}) as T;
+  }
+
+  /**
+   * Get a computed signal for a specific plugin's settings
+   */
+  select<T>(key: string): () => T {
+    return computed(() => {
+      const current = this.settingsSignal();
+      if (current[key] !== undefined) {
+        return current[key] as T;
+      }
+      
+      // Find defaults from schema
+      const schema = this.schemas.find(s => s.key === key);
+      return (schema?.defaults ?? {}) as T;
+    });
+  }
+
+  /**
+   * Update settings for a specific plugin
+   */
+  update<T extends object>(key: string, settings: Partial<T>): void {
     this.settingsSignal.update((current) => ({
       ...current,
-      qrGenerator: { ...current.qrGenerator, ...settings },
+      [key]: { ...(current[key] as object ?? {}), ...settings },
     }));
     this.saveSettings();
   }
 
-  updatePasswordGeneratorSettings(settings: Partial<PasswordGeneratorSettings>): void {
-    this.settingsSignal.update((current) => ({
-      ...current,
-      passwordGenerator: { ...current.passwordGenerator, ...settings },
-    }));
-    this.saveSettings();
+  /**
+   * Reset a specific plugin's settings to defaults
+   */
+  reset(key: string): void {
+    const schema = this.schemas.find(s => s.key === key);
+    if (schema) {
+      this.settingsSignal.update((current) => ({
+        ...current,
+        [key]: schema.defaults,
+      }));
+      this.saveSettings();
+    }
   }
 
-  updateGame2048Settings(settings: Partial<Game2048Settings>): void {
-    this.settingsSignal.update((current) => ({
-      ...current,
-      game2048: { ...current.game2048, ...settings },
-    }));
-    this.saveSettings();
-  }
-
-  updateTetrisSettings(settings: Partial<TetrisSettings>): void {
-    this.settingsSignal.update((current) => ({
-      ...current,
-      tetris: { ...current.tetris, ...settings },
-    }));
-    this.saveSettings();
-  }
-
-  resetToDefaults(): void {
-    this.settingsSignal.set(DEFAULT_SETTINGS);
+  /**
+   * Reset all settings to defaults
+   */
+  resetAll(): void {
+    const defaults: Record<string, unknown> = {};
+    this.schemas.forEach(schema => {
+      defaults[schema.key] = schema.defaults;
+    });
+    this.settingsSignal.set(defaults);
     this.saveSettings();
   }
 }

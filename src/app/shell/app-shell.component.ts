@@ -3,6 +3,7 @@ import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { filter } from 'rxjs/operators';
 import { PROCESSED_NAV_ITEMS, HEADER_COMPONENTS, OVERLAY_COMPONENTS, NavItem } from '../core/application.plugin';
+import { PluginRegistryService } from '../core/plugin-registry.service';
 import { SidebarComponent } from './sidebar.component';
 import { HeaderComponent } from './header.component';
 import { BreadcrumbComponent } from './breadcrumb.component';
@@ -50,6 +51,7 @@ import { BreadcrumbComponent } from './breadcrumb.component';
 })
 export class AppShellComponent {
   private readonly router = inject(Router);
+  private readonly registry = inject(PluginRegistryService);
   private readonly navItems = inject(PROCESSED_NAV_ITEMS);
   protected readonly headerComponents = inject(HEADER_COMPONENTS);
   protected readonly overlayComponents = inject(OVERLAY_COMPONENTS);
@@ -58,11 +60,16 @@ export class AppShellComponent {
   protected readonly currentPath = signal('/');
 
   protected readonly flatNavItems = computed(() => {
-    return this.navItems;
+    // Filter out nav items from disabled plugins
+    return this.navItems.filter(item => {
+      const pluginId = item._pluginId;
+      return !pluginId || this.registry.isEnabled(pluginId);
+    });
   });
   
   protected readonly navStructure = computed(() => {
-    const structure = this.buildNavigationTree(this.navItems);
+    const enabledItems = this.flatNavItems();
+    const structure = this.buildNavigationTree(enabledItems);
     return structure;
   });
 

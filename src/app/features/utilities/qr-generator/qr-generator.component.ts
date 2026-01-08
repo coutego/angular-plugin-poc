@@ -3,6 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SettingsService } from '../../../core/settings.service';
+import {
+  QrGeneratorSettings,
+  QR_GENERATOR_SETTINGS_KEY,
+  QR_GENERATOR_DEFAULTS,
+} from './qr-generator.plugin';
 
 @Component({
   selector: 'app-qr-generator',
@@ -128,10 +133,12 @@ export class QrGeneratorComponent {
   private readonly router = inject(Router);
 
   protected readonly inputText = signal('');
-  protected readonly qrSize = signal('200');
-  protected readonly errorLevel = signal<'L' | 'M' | 'Q' | 'H'>('M');
-  protected readonly foregroundColor = signal('#000000');
-  protected readonly backgroundColor = signal('#ffffff');
+  protected readonly qrSize = signal(QR_GENERATOR_DEFAULTS.defaultSize);
+  protected readonly errorLevel = signal<'L' | 'M' | 'Q' | 'H'>(QR_GENERATOR_DEFAULTS.errorCorrectionLevel);
+  protected readonly foregroundColor = signal(QR_GENERATOR_DEFAULTS.foregroundColor);
+  protected readonly backgroundColor = signal(QR_GENERATOR_DEFAULTS.backgroundColor);
+
+  private settingsLoaded = false;
 
   protected readonly qrCodeUrl = computed(() => {
     const text = this.inputText();
@@ -146,11 +153,14 @@ export class QrGeneratorComponent {
   constructor() {
     // Load settings from service
     effect(() => {
-      const settings = this.settingsService.qrGeneratorSettings();
-      this.qrSize.set(settings.defaultSize);
-      this.foregroundColor.set(settings.foregroundColor);
-      this.backgroundColor.set(settings.backgroundColor);
-      this.errorLevel.set(settings.errorCorrectionLevel);
+      const settings = this.settingsService.get<QrGeneratorSettings>(QR_GENERATOR_SETTINGS_KEY);
+      if (!this.settingsLoaded) {
+        this.qrSize.set(settings.defaultSize);
+        this.foregroundColor.set(settings.foregroundColor);
+        this.backgroundColor.set(settings.backgroundColor);
+        this.errorLevel.set(settings.errorCorrectionLevel);
+        this.settingsLoaded = true;
+      }
     }, { allowSignalWrites: true });
   }
 
